@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["radix_engine"] = [{"text":"impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.58.1/core/convert/trait.From.html\" title=\"trait core::convert::From\">From</a>&lt;<a class=\"struct\" href=\"radix_engine/model/struct.LockedBucket.html\" title=\"struct radix_engine::model::LockedBucket\">LockedBucket</a>&gt; for <a class=\"struct\" href=\"radix_engine/model/struct.Bucket.html\" title=\"struct radix_engine::model::Bucket\">Bucket</a>","synthetic":false,"types":["radix_engine::model::bucket::Bucket"]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

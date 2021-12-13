@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["scrypto_setup_panic_hook","Set up panic hook."],["scrypto_unwrap","Unwrap a result and abort if it’s a failure."],["sha256","Computes the SHA-256 digest of a message."],["sha256_twice","Computes the double SHA-256 digest of a message."]]});

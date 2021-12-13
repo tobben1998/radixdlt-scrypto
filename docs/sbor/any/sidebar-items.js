@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["Fields","Represents the fields of a struct or enum variant."],["Value","Represents a SBOR value."]],"fn":[["decode_any","Decode any SBOR data."],["encode_any","Encodes any SBOR value into byte array."],["traverse_any",""],["traverse_fields",""]],"trait":[["CustomValueVisitor",""]]});
