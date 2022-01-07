@@ -1,0 +1,10 @@
+let some_component = 026f150b935dab7f89f7307019fff773a38ff366968154ae00e1e9;
+let return_data = some_component.say_hello(
+    "String",
+    1u8,
+    Some(1u8),
+    Ok("Success"),
+    [12u8, 3u16]
+);
+let buckets = context.take_all();
+02ffa01926302c78c0f050f6d08140ec77757ec6cd277f7eecef42.deposit_all(buckets);

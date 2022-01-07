@@ -1,0 +1,118 @@
+use crate::ast::*;
+
+grammar;
+
+pub Transaction: Transaction = {
+    Statements => Transaction {
+        statements: <>
+    },
+}
+
+pub Statements: Vec<Statement> = {
+    Statement => vec![<>],
+    <s:Statement> <ss:Statements> => {
+        let mut result = vec![s];
+        result.extend(ss);
+        result
+    },
+}
+
+pub Statement: Statement = {
+    LetStatement => <>,
+    CallStatement => <>,
+}
+
+pub LetStatement: Statement = {
+    "let" <variable:Identifier> "=" <initializer:Expression> ";" => Statement::LetStatement {
+        variable,
+        initializer,
+    },
+}
+
+pub CallStatement: Statement = {
+    <callee:Expression> "." <function:Identifier> "(" <arguments:Values> ")" ";" => Statement::CallStatement {
+        callee,
+        function,
+        arguments,
+    }
+}
+
+pub Expression: Expression = {
+    Literal => Expression::Literal(<>),
+    Variable,
+    Tuple,
+    Array,
+    Option,
+    Result,
+    Vector,
+    Call,
+}
+
+pub Identifier: Identifier = {
+    r"[_a-zA-Z]\w*" => Identifier {
+        name: <>.to_string(),
+    },
+}
+
+pub Literal: Literal = {
+    "true" => Literal::Boolean(true),
+    "false" => Literal::Boolean(false),
+    r"[0-9]+u8" => Literal::Integer(1, "u8".to_string()),
+    r"[0-9]+u16" => Literal::Integer(1, "u16".to_string()),
+    r"[0-9]+u32" => Literal::Integer(1, "u32".to_string()),
+    r"[0-9]+u64" => Literal::Integer(1, "u64".to_string()),
+    r"01[0-9a-f]{52}" => Literal::Address(<>.to_string()),
+    r"02[0-9a-f]{52}" => Literal::Address(<>.to_string()),
+    r"03[0-9a-f]{52}" => Literal::Address(<>.to_string()),
+    r"04[0-9a-f]{66}" => Literal::Address(<>.to_string()),
+    r"\x22\w*\x22" => Literal::String(<>.to_string()),
+    "XRD" => Literal::Address(<>.to_string()),
+}
+
+pub Variable: Expression = {
+    <id:Identifier> => Expression::Variable(id),
+}
+
+pub Tuple: Expression = {
+    "(" <v:Values> ")" => Expression::Tuple(v),
+}
+
+pub Array: Expression = {
+    "[" <v:Values> "]" => Expression::Array(v),
+}
+
+pub Option: Expression = {
+    "Some" "(" <e:Expression> ")" => Expression::Option(Some(Box::new(e))),
+    "None" => Expression::Option(None),
+}
+
+pub Result: Expression = {
+    "Ok" "(" <e:Expression> ")" => Expression::Result(Ok(Box::new(e))),
+    "Err" "(" <e:Expression> ")" => Expression::Result(Err(Box::new(e))),
+}
+
+pub Vector: Expression = {
+    "vec!" "[" <v:Values> "]" => Expression::Vector(v),
+}
+
+pub Call: Expression = {
+    <callee:Expression> "." <function:Identifier> "(" <arguments:Values> ")" => Expression::Call {
+        callee: Box::new(callee),
+        function,
+        arguments,
+    },
+}
+
+pub Values: Vec<Expression> = {
+    () => Vec::<Expression>::new(),
+    NonEmptyValues,
+}
+
+pub NonEmptyValues: Vec<Expression> = {
+    <e:Expression> => vec![e],
+    <e:Expression> "," <ee:NonEmptyValues> => {
+        let mut result = vec![e];
+        result.extend(ee);
+        result
+    },
+}
