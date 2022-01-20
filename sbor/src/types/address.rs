@@ -1,6 +1,3 @@
-use sbor::{describe::Type, *};
-
-use crate::buffer::*;
 use crate::rust::borrow::ToOwned;
 use crate::rust::convert::TryFrom;
 use crate::rust::fmt;
@@ -8,6 +5,7 @@ use crate::rust::str::FromStr;
 use crate::rust::vec;
 use crate::rust::vec::Vec;
 use crate::types::*;
+use crate::{describe::Type, *};
 
 /// The package which defines the `System` blueprint.
 pub const SYSTEM_PACKAGE: Address = Address::Package([

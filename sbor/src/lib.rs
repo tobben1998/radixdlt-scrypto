@@ -17,6 +17,8 @@ pub mod encode;
 pub mod rust;
 /// SBOR type ids.
 pub mod type_id;
+/// Custom types.
+pub mod types;
 
 pub use any::{decode_any, encode_any};
 pub use decode::{Decode, DecodeError, Decoder};

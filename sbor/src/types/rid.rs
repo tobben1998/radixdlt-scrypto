@@ -1,12 +1,10 @@
-use sbor::{describe::Type, *};
-
-use crate::buffer::*;
 use crate::rust::borrow::ToOwned;
 use crate::rust::convert::TryFrom;
 use crate::rust::string::String;
 use crate::rust::vec;
 use crate::rust::vec::Vec;
 use crate::types::*;
+use crate::{describe::Type, *};
 
 /// Represents a bucket ref id.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]

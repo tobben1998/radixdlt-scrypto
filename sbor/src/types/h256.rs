@@ -1,12 +1,10 @@
-use sbor::{describe::Type, *};
-
-use crate::buffer::*;
 use crate::rust::borrow::ToOwned;
 use crate::rust::convert::TryFrom;
 use crate::rust::fmt;
 use crate::rust::str::FromStr;
 use crate::rust::vec;
 use crate::types::*;
+use crate::{describe::Type, *};
 
 /// Represents a 32-byte hash digest.
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]

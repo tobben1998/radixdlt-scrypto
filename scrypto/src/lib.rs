@@ -27,9 +27,13 @@ pub mod prelude;
 /// Scrypto resource abstractions.
 pub mod resource;
 /// A facade of types in Rust standard library.
-pub mod rust;
+pub mod rust {
+    pub use sbor::rust::*;
+}
 /// Scrypto primitive types.
-pub mod types;
+pub mod types {
+    pub use sbor::types::*;
+}
 /// Utility functions.
 pub mod utils;
 
@@ -37,6 +41,10 @@ pub mod utils;
 pub mod abi {
     pub use scrypto_abi::*;
 }
+
+// Re-export SBOR derive.
+extern crate sbor;
+pub use sbor::{Decode, Describe, Encode, TypeId};
 
 // Re-export Scrypto derive.
 extern crate scrypto_derive;

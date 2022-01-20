@@ -2,9 +2,7 @@ use core::ops::*;
 
 use num_bigint::BigInt;
 use num_traits::Signed;
-use sbor::{describe::Type, *};
 
-use crate::buffer::*;
 use crate::rust::borrow::ToOwned;
 use crate::rust::convert::TryFrom;
 use crate::rust::fmt;
@@ -12,7 +10,8 @@ use crate::rust::str::FromStr;
 use crate::rust::string::String;
 use crate::rust::vec;
 use crate::rust::vec::Vec;
-use crate::types::copy_u8_array;
+use crate::types::*;
+use crate::{describe::Type, *};
 
 /// The universal precision used by `Decimal`.
 pub const PRECISION: i128 = 10i128.pow(18);

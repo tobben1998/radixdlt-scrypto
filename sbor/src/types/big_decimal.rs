@@ -2,9 +2,7 @@ use core::ops::*;
 
 use num_bigint::{BigInt, Sign};
 use num_traits::{sign::Signed, Zero};
-use sbor::{describe::Type, *};
 
-use crate::buffer::*;
 use crate::rust::borrow::ToOwned;
 use crate::rust::convert::TryFrom;
 use crate::rust::fmt;
@@ -12,6 +10,8 @@ use crate::rust::str::FromStr;
 use crate::rust::string::String;
 use crate::rust::vec;
 use crate::rust::vec::Vec;
+use crate::types::*;
+use crate::{describe::Type, *};
 
 /// The universal precision used by `BigDecimal`.
 const PRECISION: i128 = 10i128.pow(18);

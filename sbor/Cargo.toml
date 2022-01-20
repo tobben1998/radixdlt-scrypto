@@ -7,12 +7,15 @@ edition = "2021"
 sbor-derive = { path = "../sbor-derive" }
 hashbrown = { version = "0.11", optional = true } 
 serde = { version = "1.0", default-features = false, optional = true }
+hex = { version = "0.4", default-features = false }
+num-traits = { version = "0.2", default-features = false }
+num-bigint = { version = "0.4", default-features = false }
 
 [features]
 # You should enable either `std` or `alloc`
 default = ["std"]
-std = []
-alloc = ["hashbrown"]
+std = ["hex/std"]
+alloc = ["hashbrown", "hex/alloc"]
 
 # Enable tracing
 trace = ["sbor-derive/trace"]
