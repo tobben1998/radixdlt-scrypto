@@ -17,6 +17,14 @@ uuid = { version = "0.8", features = ["v4"] }
 hex = { version = "0.4" }
 cargo_toml = { version = "0.10" }
 rocksdb = { git = "https://github.com/rust-rocksdb/rust-rocksdb", tag = "v0.17.0" }
+keccak-hasher = { git = "https://github.com/paritytech/trie.git" }
+trie-standardmap = { git = "https://github.com/paritytech/trie.git" }
+hash-db = { git = "https://github.com/paritytech/trie.git" }
+memory-db = { git = "https://github.com/paritytech/trie.git" }
+trie-root = { git = "https://github.com/paritytech/trie.git" }
+trie-db = { git = "https://github.com/paritytech/trie.git" }
+reference-trie = { git = "https://github.com/paritytech/trie.git" }
+rand = "*"
 
 [[bin]]
 name = "resim"
