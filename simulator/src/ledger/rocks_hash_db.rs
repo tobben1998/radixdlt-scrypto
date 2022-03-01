@@ -193,7 +193,7 @@ where
         }
 
         let key = KF::key(key, prefix);
-        self.db.delete(&key).unwrap();
+        // self.db.delete(&key).unwrap();
     }
 }
 
