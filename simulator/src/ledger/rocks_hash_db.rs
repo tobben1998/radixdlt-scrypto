@@ -1,6 +1,6 @@
 use hash_db::{AsHashDB, HashDB, HashDBRef, Hasher as KeyHasher, Prefix};
 use rocksdb::{DBWithThreadMode, SingleThreaded, DB};
-use std::{cmp::Eq, collections::hash_map::Entry, collections::HashMap, hash, marker::PhantomData};
+use std::{cmp::Eq, hash, marker::PhantomData};
 
 pub struct RocksHashDb<H, KF, T>
 where
@@ -8,7 +8,6 @@ where
     KF: KeyFunction<H>,
 {
     db: DBWithThreadMode<SingleThreaded>,
-    data: HashMap<KF::Key, (T, i32)>,
     hashed_null_node: H::Out,
     null_node_data: T,
     _kf: PhantomData<KF>,
@@ -95,26 +94,7 @@ where
         if key == &self.hashed_null_node {
             return None;
         }
-        let key = KF::key(key, prefix);
-        self.db.get(&key).unwrap(); // YULONG TESTING
-        match self.data.entry(key) {
-            Entry::Occupied(mut entry) => {
-                if entry.get().1 == 1 {
-                    let (value, _) = entry.remove();
-
-                    Some(value)
-                } else {
-                    entry.get_mut().1 -= 1;
-                    None
-                }
-            }
-            Entry::Vacant(entry) => {
-                let value = T::default();
-
-                entry.insert((value, -1));
-                None
-            }
-        }
+        todo!()
     }
 }
 
@@ -130,12 +110,20 @@ where
 
     /// Create a new `RocksHashDb` from a given null key/data
     pub fn from_null_node(root: std::path::PathBuf, null_key: &[u8], null_node_data: T) -> Self {
+        let mut opts = rocksdb::Options::default();
+        opts.create_if_missing(true);
+        opts.set_compression_per_level(&[
+            rocksdb::DBCompressionType::None,
+            rocksdb::DBCompressionType::None,
+            rocksdb::DBCompressionType::None,
+            rocksdb::DBCompressionType::None,
+            rocksdb::DBCompressionType::None,
+        ]);
+
         RocksHashDb {
-            db: DB::open_default(root.as_path()).unwrap(),
-            data: HashMap::default(),
+            db: DB::open(&opts, root.as_path()).unwrap(),
             hashed_null_node: H::hash(null_key),
             null_node_data,
-
             _kf: Default::default(),
         }
     }
@@ -149,9 +137,7 @@ where
         if key == &self.hashed_null_node {
             return Some((&self.null_node_data, 1));
         }
-        let key = KF::key(key, prefix);
-        self.db.get(&key).unwrap(); // YULONG TESTING
-        self.data.get(&key).map(|(value, count)| (value, *count))
+        todo!()
     }
 }
 
@@ -167,9 +153,8 @@ where
         }
 
         let key = KF::key(key, prefix);
-        self.db.get(&key).unwrap(); // YULONG TESTING
-        match self.data.get(&key) {
-            Some(&(ref d, rc)) if rc > 0 => Some(d.clone()),
+        match self.db.get(&key).unwrap() {
+            Some(x) => Some(T::from(&x)),
             _ => None,
         }
     }
@@ -180,11 +165,7 @@ where
         }
 
         let key = KF::key(key, prefix);
-        self.db.get(&key).unwrap(); // YULONG TESTING
-        match self.data.get(&key) {
-            Some(&(_, x)) if x > 0 => true,
-            _ => false,
-        }
+        self.db.get(&key).unwrap().is_some()
     }
 
     fn emplace(&mut self, key: H::Out, prefix: Prefix, value: T) {
@@ -193,19 +174,7 @@ where
         }
 
         let key = KF::key(&key, prefix);
-        self.db.put(&key, &value).unwrap(); // YULONG TESTING
-        match self.data.entry(key) {
-            Entry::Occupied(mut entry) => {
-                let &mut (ref mut old_value, ref mut rc) = entry.get_mut();
-                if *rc <= 0 {
-                    *old_value = value;
-                }
-                *rc += 1;
-            }
-            Entry::Vacant(entry) => {
-                entry.insert((value, 1));
-            }
-        }
+        self.db.put(&key, &value).unwrap();
     }
 
     fn insert(&mut self, prefix: Prefix, value: &[u8]) -> H::Out {
@@ -224,17 +193,7 @@ where
         }
 
         let key = KF::key(key, prefix);
-        // DON'T DELETE ENTRY AT ALL // YULONG TESTING
-        match self.data.entry(key) {
-            Entry::Occupied(mut entry) => {
-                let &mut (_, ref mut rc) = entry.get_mut();
-                *rc -= 1;
-            }
-            Entry::Vacant(entry) => {
-                let value = T::default();
-                entry.insert((value, -1));
-            }
-        }
+        self.db.delete(&key).unwrap();
     }
 }
 
