@@ -169,7 +169,7 @@ pub trait SubstateStore {
             // Instantiate system component
             let system_vault = Vault::new(ResourceContainer::new(
                 RADIX_TOKEN,
-                ResourceContainerState::fungible(XRD_MAX_SUPPLY.into(), 18),
+                ResourceContainer::new_fungible(XRD_MAX_SUPPLY.into(), 18),
             ));
             self.put_encoded_child_substate(
                 &SYSTEM_COMPONENT,
