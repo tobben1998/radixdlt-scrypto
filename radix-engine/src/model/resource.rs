@@ -17,6 +17,10 @@ pub enum ResourceContainerError {
     InsufficientBalance,
     /// Non-fungible operation on fungible resource is not allowed
     NonFungibleOperationNotAllowed,
+    /// The other container is locked, thus can't be put into this container
+    OtherContainerLocked,
+    /// Generating zero-amount proof is not allowed
+    ZeroAmountProofNotAllowed,
 }
 
 #[derive(Debug, TypeId, Encode, Decode)]
@@ -103,8 +107,10 @@ impl ResourceContainer {
             return Err(ResourceContainerError::ResourceAddressNotMatching);
         }
 
-        // assumption: owned bucket should not be locked
-        assert!(!other.is_locked());
+        // check container lock status
+        if other.is_locked() {
+            return Err(ResourceContainerError::OtherContainerLocked);
+        }
 
         // add the other bucket into liquid pool
         match (self, other.liquid_amount()) {
@@ -165,6 +171,24 @@ impl ResourceContainer {
         }
     }
 
+    pub fn max_locked_amount(&self) -> Amount {
+        match &self.state {
+            ResourceContainerState::Fungible { locked_amounts, .. } => {
+                // TODO: remove loop once `last_key_value` is stable.
+                Amount::Fungible {
+                    amount: locked_amounts
+                        .keys()
+                        .cloned()
+                        .max()
+                        .unwrap_or(Decimal::zero()),
+                }
+            }
+            ResourceContainerState::NonFungible { locked_ids, .. } => Amount::NonFungible {
+                ids: locked_ids.keys().cloned().collect(),
+            },
+        }
+    }
+
     pub fn liquid_amount(&self) -> Amount {
         match self {
             Self::Fungible { liquid_amount, .. } => Amount::Fungible {
@@ -173,6 +197,35 @@ impl ResourceContainer {
             Self::NonFungible { liquid_ids, .. } => Amount::NonFungible {
                 ids: liquid_ids.clone(),
             },
+        }
+    }
+
+    pub fn total_amount(&self) -> Amount {
+        match &self.state {
+            ResourceContainerState::Fungible {
+                liquid_amount,
+                locked_amounts,
+                ..
+            } => {
+                // TODO: remove loop once `last_key_value` is stable.
+                let max_locked_amount = locked_amounts
+                    .keys()
+                    .cloned()
+                    .max()
+                    .unwrap_or(Decimal::zero());
+
+                Amount::Fungible {
+                    amount: liquid_amount.clone() + self.max_locked_amount(),
+                }
+            }
+            ResourceContainerState::NonFungible {
+                liquid_ids,
+                locked_ids,
+            } => {
+                let mut all_ids: BTreeSet<NonFungibleId> = locked_ids.keys().cloned().collect();
+                all_ids.extend(liquid_ids.clone());
+                Amount::NonFungible { ids: all_ids }
+            }
         }
     }
 
@@ -213,13 +266,19 @@ impl ResourceContainer {
 }
 
 impl Proof {
+    // TODO: partial proof
+    // TODO: multiple containers
+
     pub fn new(
         resource_container_id: ResourceContainerId,
-        resource_container: Rc<ResourceContainer>,
+        resource_container: &mut ResourceContainer,
     ) -> Self {
         let resource_def_id = resource_container.resource_def_id();
         let resource_type = resource_container.resource_type();
-        let total_amount = resource_container.liquid_amount();
+
+        // Generate a proof for the total amount
+        let total_amount = resource_container.total_amount();
+
         let mut amounts = HashMap::new();
         amounts.insert(
             resource_container_id,
