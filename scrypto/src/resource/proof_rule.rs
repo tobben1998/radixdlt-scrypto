@@ -142,10 +142,3 @@ pub enum AuthRule {
     AnyOf(Vec<AuthRule>),
     AllOf(Vec<AuthRule>),
 }
-
-#[macro_export]
-macro_rules! auth {
-    ($rule:expr) => {{
-        ::scrypto::resource::AuthRule::ProofRule($rule)
-    }};
-}

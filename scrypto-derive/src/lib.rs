@@ -1,4 +1,5 @@
 mod ast;
+mod auth;
 mod blueprint;
 mod import;
 mod non_fungible_data;
@@ -43,6 +44,13 @@ use proc_macro::TokenStream;
 #[proc_macro]
 pub fn blueprint(input: TokenStream) -> TokenStream {
     blueprint::handle_blueprint(proc_macro2::TokenStream::from(input))
+        .unwrap_or_else(|err| err.to_compile_error())
+        .into()
+}
+
+#[proc_macro]
+pub fn auth(input: TokenStream) -> TokenStream {
+    auth::handle_auth(proc_macro2::TokenStream::from(input))
         .unwrap_or_else(|err| err.to_compile_error())
         .into()
 }
