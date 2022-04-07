@@ -1,0 +1,19 @@
+need a src folder with lib.rs file
+need a cargo.toml file (remebember to change path if neccesary.) 
+Cargo.lock and target map is automatically created when publish is called.
+(remember to so save the files before publish is called)
+
+resim reset
+resim new-account
+export acct="address"
+export acct="pubkey" (not always necesarly)
+resim publish . (or path if not in current folder)
+export package
+resim call-function
+export component and resource
+resim call-method
+
+resim reset (if you change the bluprint struct)
+resim publish --address $package .  (if you only change functions and not blueprint struct)(path instead of "." if other path. )
+
+
