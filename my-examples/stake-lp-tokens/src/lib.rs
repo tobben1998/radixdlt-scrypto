@@ -129,11 +129,11 @@ blueprint! {
         }
 
         
-        //make a function for only witdrawing for the staker
+        //make a function for only witdrawing the rewards
 
         //make a function for the creater of the new compnent to be able to witdraw and deposit from rewards vaults.
-        //if he finds out that more tokens should bed used for other rewards plattform.
-        //of course he should not has acces to staking vault. just the poeple that has deposited and only for the amount.
+        //if he finds out that more tokens should be used for other rewards plattform.
+        //of course he should not have acces to staking vault. just the people that has deposited and only for the amount.
 
     } 
 
