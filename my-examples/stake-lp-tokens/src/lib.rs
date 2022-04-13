@@ -1,8 +1,13 @@
 use scrypto::prelude::*;
+use sbor::*;
 
-//huge inspiration from time-lock
+//inspiration from time-lock and chrimstams caledner coal staking day 10?
 
-
+#[derive(Debug, TypeId, Encode, Decode, Describe, PartialEq, Eq)]
+pub struct StakerData{
+    started_at: u64,
+    amount: Decimal,
+}
 
 blueprint! {
     struct Stake {
@@ -17,10 +22,11 @@ blueprint! {
         rewards_vault: Vault, //the owner will set the total rewards amount in here.
 
         
-        stakers: HashMap<Address, (Decimal, u64)>, 
+        stakers: HashMap<Address, StakerData>, 
         //NB! hashmap. only unique keys, so a staker can not stake two times if not taken care of.
         //can not just add an extra element in the hashmap, because only one can exist.
         //better with other strcuts than hashmap, or just update in the stake function based on that?
+        //maybe call the witdraw function and then stake function, if they have already staked.
     }
 
     impl Stake {
@@ -51,31 +57,39 @@ blueprint! {
         //send the staking amount to the staking vault.
         //send info about staking amount and current epoch to the stakers struct
 
-        //add some logic that check if you have staked before and updates based on that?
-        //an dont just overides, becuase it is a hashmap.
         pub fn stake(&mut self, stake_tokens: Bucket) -> Bucket{
+
+            //math it with your own adress. how to you get your own adress. 
+            //self refer to the struct stake. want to to caller.Address or somerhing
+            match self.stakers.get(){
+                Some(staker) => {
+                    std::process::abort();
+                    //call the witdraw function instead of a aborting. I think will be possible then?
+                    //regarding only one address per hashmap.
+                }
+            }
+
+            
         
             let amount = stake_tokens.amount(); 
-            assert!(amount != Decimal::zero(), "You cannot stake zero amount");
+            assert!(amount > Decimal::zero(), "You need to stake more tah xero tokens");
 
             let start_time=Context::current_epoch();
 
         
-            // Mint Badge with locked amount and end epoch as metadata
-            let resource_def = ResourceBuilder::new_fungible(DIVISIBILITY_MAXIMUM)
-                .metadata("name", "Time lock badge")
+            // Mint Badge with locked amount and start epoch as metadata
+            let badge = ResourceBuilder::new_fungible(DIVISIBILITY_NONE)
+                .metadata("name", "Staker Badge")
                 .metadata("amount", amount.to_string())
                 .metadata("start epoch", start_time.to_string())
                 .flags(MINTABLE | BURNABLE )
                 .badge(self.minter_vault.resource_def(), MAY_MINT | MAY_BURN)
-                .no_initial_supply();
+                .initial_supply_fungible(1);
         
 
             // store new badge address in the stakers struct
-            self.stakers.insert(resource_def.address(), (amount, start_time));
-
-            //badge given to staker. use this for something?
-            let badge = self.minter_vault.authorize(|badge| {resource_def.mint(1, badge)});
+            self.stakers.insert(badge.address(), StakerData {started_at: start_time, amount: amount});
+            self.stake_vault.put(stake_tokens);
             badge
         }
 
@@ -85,23 +99,11 @@ blueprint! {
         //calculation of rewards also need to be done here.
 
         pub fn unstake(&mut self, badge: Bucket) -> Bucket {
-            let resource_def = badge.resource_def();
             let bucket = Bucket::new(RADIX_TOKEN);
 
-            //do some math to calculate rewards based on total amount staked in pool,
-            // amount user have staked and time he started staking compared to time now.
-
-            // let total_staked = 0;
-            // for stakers in self.stakers{
-            //     total_staked = total_staked + self.stakers.values() //value 0
-            // }
-            //self.rewards_vault
-            //
-            
-
-            //make so it goes through every element of the Hashmap. Does the match function do that?
-            match self.stakers.get(&resource_def.address()) {
-                Some(&value) => { 
+            //match: so it goes through every element of the Hashmap.
+            let staker_data = match self.stakers.get(&badge.address()) { //what is the difference between resoruce adress and adress? maybe chanhe to resoruce adress?
+                Some(&staker) => { 
                 assert!(value.0 > Decimal::zero(), "Release amount is zero");
 
                 // Burn the badge
@@ -109,16 +111,18 @@ blueprint! {
                     badge.burn_with_auth(badge);
                 });
                 // update stakers in the component
-                self.stakers.remove(&resource_def.address());
+                self.stakers.remove(&badge.address());
                 
 
-                bucket.put(self.stake_vault.take(value.0));
+                bucket.put(self.stake_vault.take(staker_data.amount));
                 bucket.put(self.rewards_vault.take(1)); //put in rewards. do this based on the math
+                //do some math to calculate rewards based on total amount staked in pool,
+                // amount user have staked and time he started staking compared to time now and 
+                //how manye total tokens have been staked in the different epochs.
+            
 
                 },
-
-
-                _ => {
+                None => {
                     info!("no mints found with provided badge");
                     std::process::abort();
                 }
