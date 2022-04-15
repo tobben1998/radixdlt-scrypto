@@ -18,8 +18,6 @@ pub struct StakedEpoch{
 blueprint! {
     struct Stake {
 
-      // Define what resources and data will be managed by Stake components
-
         // Authorization for the person making this thing to controll rewards vault.
         //(should deposit and witdraewl from rewards be possible?)
         minter_vault: Vault,
@@ -37,8 +35,7 @@ blueprint! {
         //maybe call the witdraw function and then stake function, if they have already staked.
 
 
-        staked_vec: Vec<StakedEpoch> 
-        //update this for every deposit and withdrawel (if no problem with race condition)
+        staked_vec: Vec<StakedEpoch>, 
     }
 
     impl Stake {
@@ -78,7 +75,7 @@ blueprint! {
 
 
             //match it with your own adress. how to you get your own adress. 
-            //self refer to the struct stake. want to to caller.Address or somerhing
+            //self refer to the struct stake. want the caller.Address or somerhing
             match self.stakers.get(){
                 Some(staker) => {
                     std::process::abort();
@@ -119,8 +116,9 @@ blueprint! {
         //witdraw the staked amount and the fees earned to the stakers wallet
         //calculation of rewards also need to be done here.
 
-        pub fn unstake(&mut self, badge: Bucket) -> Bucket {
-            let bucket = Bucket::new(RADIX_TOKEN);
+        pub fn unstake(&mut self, badge: Bucket) -> (Bucket, Bucket) {
+            let bucket_radix = Bucket::new(RADIX_TOKEN);
+            let bucket_lp = Bucket::new(""""); //the lp token
 
             //match: so it goes through every element of the Hashmap.
             let staker_data = match self.stakers.get(&badge.address()) { //what is the difference between resoruce adress and adress? maybe chanhe to resoruce adress?
@@ -145,24 +143,23 @@ blueprint! {
                 }
 
                 
-                
 
-                bucket.put(self.stake_vault.take(staker_data.amount));
-
+                //loop through staked_vec to calculate what percentage of the reward you should get per epoch.
+                let total_rewards_epoch= 100; //this should be decide in new or something like that. total rewards distributed per epoch.
                 let rewards=0;
-                let total_rewards_epoch= 100; //this should be made decide in new or something
+                let prev=0;
+                for element in staked_vec.iter(){
+                    let this=element;
+                    if prev.epoch>0 {
+                       let num=this.epoch-prev.epoch;
+                       rewards += num*total_rewards_epoch*(staker_data.amount/prev.staked);
+                    }
+                    let prev=this;
+                }
+                rewards +=total_rewards_epoch*(staker_data.amount/prev.staked); //need to add for last element too
 
-
-                //do some math to calculate rewards based on total amount staked in pool,
-                // amount user have staked and time he started staking compared to time now and 
-                //how manye total tokens have been staked in the different epochs.
-
-                //loop thourgh staked and constisusly calcuate total share of the pool and and and that to your rewards. (if tha hashmap is possible to make regarding race conditions.)
-            
-
-
-
-                bucket.put(self.rewards_vault.take(1)); //put in rewards. do this based on the math
+                bucket_lp.put(self.stake_vault.take(staker_data.amount));
+                bucket_radix.put(self.rewards_vault.take(rewards));
                 
                 
                 },
@@ -173,7 +170,7 @@ blueprint! {
             }
             
             // Return the withdrawn tokens
-            bucket
+            (bucket_radix,bucket_lp)
         }
 
         
