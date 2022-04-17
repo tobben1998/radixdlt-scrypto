@@ -77,14 +77,16 @@ blueprint! {
 
             //match it with your own adress. how to you get your own adress. 
             //self refer to the struct stake. want the caller.Address or somerhing
-            match self.stakers.get(){
+            
+            /*
+            match self.stakers.get(""){
                 Some(staker) => {
                     std::process::abort();
                     //call the witdraw function instead of a aborting. I think will be possible then?
                     //regarding only one address per hashmap.
                 }
-            }
-
+            };
+            */
 
             // Mint Badge with locked amount and start epoch as metadata
             let badge = ResourceBuilder::new_fungible(DIVISIBILITY_NONE)
@@ -97,13 +99,17 @@ blueprint! {
         
 
             //Updates how much is staked in stakedVec
-            if curr_epoch == self.staked_vec.last().epoch {
-                let last=self.staked_vec.pop;
-                self.staked_vec.push([curr_epoch,amount+last.staked]);
+            let last=self.staked_vec.len()-1;
+            if curr_epoch == self.staked_vec[last].epoch {
+                let last_epoch_staked=self.staked_vec[last].staked;
+                self.staked_vec[last]=[curr_epoch,amount+last_epoch_staked];
             }
-            else if curr_epoch > self.staked_vec.last().epoch {
-                self.staked_vec.push([curr_epoch,amount+self.staked_vec[self.staked_vec.len()-2].staked]); // add amount of penultimate element
+            else if curr_epoch > self.staked_vec[last].epoch {
+                let penultimate_epoch_staked=self.staked_vec[last-1].staked;
+                self.staked_vec.push([curr_epoch,amount+penultimate_epoch_staked]);// subtract amount of penultimate element
             }
+
+
 
             // store new badge address in the stakers struct
             self.stakers.insert(badge.resource_address(), StakerData {started_at: curr_epoch, amount: amount});
@@ -139,12 +145,14 @@ blueprint! {
             self.stakers.remove(&badge.resource_address());
             //Updates how much is staked in stakedVec
             
-            if curr_epoch == self.staked_vec.last().epoch {
-                let last=self.staked_vec.pop;
-                self.staked_vec.push([curr_epoch,staker_data.amount-last.staked]);
+            let last=self.staked_vec.len()-1;
+            if curr_epoch == self.staked_vec[last].epoch {
+                let last_epoch_staked=self.staked_vec[last].staked;
+                self.staked_vec[last]=[curr_epoch,staker_data.amount-last_epoch_staked];
             }
-            else if curr_epoch > self.staked_vec.last().epoch {
-                self.staked_vec.push([curr_epoch,staker_data.amount-self.staked_vec[self.staked_vec.len()-2].staked]);// subtract amount of penultimate element
+            else if curr_epoch > self.staked_vec[last].epoch {
+                let penultimate_epoch_staked=self.staked_vec[last-1].staked;
+                self.staked_vec.push([curr_epoch,staker_data.amount-penultimate_epoch_staked]);// subtract amount of penultimate element
             }
             
             //loop through staked_vec to calculate what percentage of the reward you should get per epoch.
