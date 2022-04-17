@@ -54,6 +54,7 @@ blueprint! {
                 minter_vault: Vault::with_bucket(minter_bucket),
                 minter_badge: minter_resource_def,
                 stakers: HashMap::new(),
+                staked_vec: Vec::new(),
                 stake_vault: Vault::new(RADIX_TOKEN), //should be the lp token
                 rewards_vault: Vault::new(RADIX_TOKEN)
             }
@@ -96,16 +97,16 @@ blueprint! {
         
 
             //Updates how much is staked in stakedVec
-            if curr_epoch == Self.staked_vec.last().epoch {
+            if curr_epoch == self.staked_vec.last().epoch {
                 let last=self.staked_vec.pop;
                 self.staked_vec.push([curr_epoch,amount+last.staked]);
             }
-            else if curr_epoch > Self.staked_vec.last().epoch {
-                self.staked_vec.push([curr_epoch,amount+Self.staked_vec[Self.staked_vec.len()-2].staked]); // add amount of penultimate element
+            else if curr_epoch > self.staked_vec.last().epoch {
+                self.staked_vec.push([curr_epoch,amount+self.staked_vec[self.staked_vec.len()-2].staked]); // add amount of penultimate element
             }
 
             // store new badge address in the stakers struct
-            self.stakers.insert(badge.address(), StakerData {started_at: curr_epoch, amount: amount});
+            self.stakers.insert(badge.resource_address(), StakerData {started_at: curr_epoch, amount: amount});
             self.stake_vault.put(stake_tokens);
 
             badge
@@ -118,56 +119,51 @@ blueprint! {
 
         pub fn unstake(&mut self, badge: Bucket) -> (Bucket, Bucket) {
             let bucket_radix = Bucket::new(RADIX_TOKEN);
-            let bucket_lp = Bucket::new(""""); //the lp token
+            let bucket_lp = Bucket::new(RADIX_TOKEN); //the lp token
+            let curr_epoch = Context::current_epoch();
 
             //match: so it goes through every element of the Hashmap.
-            let staker_data = match self.stakers.get(&badge.address()) { //what is the difference between resoruce adress and adress? maybe chanhe to resoruce adress?
-                Some(&staker) => { 
-                assert!(value.0 > Decimal::zero(), "Release amount is zero");
-
-                // Burn the badge
-                self.minter_vault.authorize(|badge| {
-                    badge.burn_with_auth(badge);
-                });
-
-                // update stakers in the component
-                self.stakers.remove(&badge.address());
-
-                //Updates how much is staked in stakedVec
-                if curr_epoch == Self.staked_vec.last().epoch {
-                    let last=self.staked_vec.pop;
-                    self.staked_vec.push([curr_epoch,amount-last.staked]);
-                }
-                else if curr_epoch > Self.staked_vec.last().epoch {
-                    self.staked_vec.push([curr_epoch,amount-Self.staked_vec[Self.staked_vec.len()-2].staked]);// subtract amount of penultimate element
-                }
-
-                
-
-                //loop through staked_vec to calculate what percentage of the reward you should get per epoch.
-                let total_rewards_epoch= 100; //this should be decide in new or something like that. total rewards distributed per epoch.
-                let rewards=0;
-                let prev=0;
-                for element in staked_vec.iter(){
-                    let this=element;
-                    if prev.epoch>0 {
-                       let num=this.epoch-prev.epoch;
-                       rewards += num*total_rewards_epoch*(staker_data.amount/prev.staked);
-                    }
-                    let prev=this;
-                }
-                rewards +=total_rewards_epoch*(staker_data.amount/prev.staked); //need to add for last element too
-
-                bucket_lp.put(self.stake_vault.take(staker_data.amount));
-                bucket_radix.put(self.rewards_vault.take(rewards));
-                
-                
-                },
+            let staker_data = match self.stakers.get(&badge.resource_address()) {
+                Some(staker) => staker,
                 None => {
                     info!("no mints found with provided badge");
                     std::process::abort();
                 }
+            };
+
+            // Burn the badge
+            self.minter_vault.authorize(|badge| {
+                badge.burn_with_auth(badge);
+            });
+            // update stakers in the component
+            self.stakers.remove(&badge.resource_address());
+            //Updates how much is staked in stakedVec
+            
+            if curr_epoch == self.staked_vec.last().epoch {
+                let last=self.staked_vec.pop;
+                self.staked_vec.push([curr_epoch,staker_data.amount-last.staked]);
             }
+            else if curr_epoch > self.staked_vec.last().epoch {
+                self.staked_vec.push([curr_epoch,staker_data.amount-self.staked_vec[self.staked_vec.len()-2].staked]);// subtract amount of penultimate element
+            }
+            
+            //loop through staked_vec to calculate what percentage of the reward you should get per epoch.
+            let total_rewards_epoch= 100; //this should be decide in new or something like that. total rewards distributed per epoch.
+            let rewards=0;
+            let prev; //do I need to define what prev is to go thorugh if sentence first time
+            for element in self.staked_vec.iter(){
+                let this=element;
+                if prev.epoch>0 {
+                   let num=this.epoch-prev.epoch;
+                   rewards += num*total_rewards_epoch*(staker_data.amount/prev.staked);
+                }
+                let prev=this;
+            }
+            rewards +=total_rewards_epoch*(staker_data.amount/prev.staked); //need to add for last element too
+            bucket_lp.put(self.stake_vault.take(staker_data.amount));
+            bucket_radix.put(self.rewards_vault.take(rewards));
+            
+            
             
             // Return the withdrawn tokens
             (bucket_radix,bucket_lp)
