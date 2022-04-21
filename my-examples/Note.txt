@@ -6,7 +6,7 @@ Cargo.lock and target map is automatically created when publish is called.
 resim reset
 resim new-account
 export acct="address"
-export acct="pubkey" (not always necesarly)
+export pub="pubkey" (not always necesarly)
 resim publish . (or path if not in current folder)
 export package
 resim call-function

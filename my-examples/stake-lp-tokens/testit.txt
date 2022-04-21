@@ -1,0 +1,47 @@
+resim reset
+export op1=$(resim new-account)
+export pk1=$(echo "$op1" | sed -nr "s/Public key: ([[:alnum:]_]+)/\1/p")
+export a1=$(echo "$op1" | sed -nr "s/Account address: ([[:alnum:]_]+)/\1/p")
+export op2=$(resim new-account)
+export pk2=$(echo "$op2" | sed -nr "s/Public key: ([[:alnum:]_]+)/\1/p")
+export a2=$(echo "$op2" | sed -nr "s/Account address: ([[:alnum:]_]+)/\1/p")
+export op3=$(resim new-account)
+export pk3=$(echo "$op3" | sed -nr "s/Public key: ([[:alnum:]_]+)/\1/p")
+export a3=$(echo "$op3" | sed -nr "s/Account address: ([[:alnum:]_]+)/\1/p")
+export op4=$(resim new-account)
+export pk4=$(echo "$op4" | sed -nr "s/Public key: ([[:alnum:]_]+)/\1/p")
+export a4=$(echo "$op4" | sed -nr "s/Account address: ([[:alnum:]_]+)/\1/p")
+export xrd=030000000000000000000000000000000000000000000000000004
+
+
+
+resim publish .
+
+export pkg=""
+
+resim call-function $pkg Stake new
+
+export resdef=""
+
+export comp=""
+
+resim call-method $comp add_rewards 10000,$xrp
+
+
+resim set-current-epoch 1
+resim set-default-account $a1 $pk1
+resim call-method $comp stake 1000,$xrd
+
+export badge= "the resorceDef"
+
+resim call-method $comp unstake 1,$badge
+
+
+resim set-current-epoch 10
+
+resim set-default-account $a2 $pk2
+resim call-method $comp stake 1000,$xrd
+resim set-default-account $a3 $pk3
+resim call-method $comp stake 1000,$xrd
+resim set-default-account $a4 $pk4
+resim call-method $comp stake 1000,$xrd
