@@ -166,7 +166,7 @@ blueprint! {
                 }
                 prev=this;
             }
-            //rewards +=total_rewards_epoch*(staker_data.amount/prev.staked); //need to add for last element too
+            rewards +=total_rewards_epoch*(staker_data.amount/prev.staked); //need to add for last element too
             bucket_lp.put(self.stake_vault.take(staker_data.amount));
             bucket_radix.put(self.rewards_vault.take(rewards));
 
