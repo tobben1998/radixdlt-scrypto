@@ -49,7 +49,7 @@ blueprint! {
 
         pub fn new() -> (Component, Bucket) { //instansiate function
 
-            let minter_bucket = ResourceBuilder::new_fungible(DIVISIBILITY_NONE)
+            let mut minter_bucket = ResourceBuilder::new_fungible(DIVISIBILITY_NONE)
             .metadata("name", "Badge Mint Auth")
             .initial_supply_fungible(1);
 
@@ -63,7 +63,7 @@ blueprint! {
                 stakers: HashMap::new(),
                 staked_vec: Vec::new(),
                 stake_vault: Vault::new(RADIX_TOKEN), //should be the lp token
-                rewards_vault: Vault::new(RADIX_TOKEN)
+                rewards_vault: Vault::new(RADIX_TOKEN) 
             }
             .instantiate();
 
@@ -131,8 +131,6 @@ blueprint! {
         //calculation of rewards also need to be done here.
 
         pub fn unstake(&mut self, badge: Bucket) -> (Bucket, Bucket) {
-            let bucket_radix = Bucket::new(RADIX_TOKEN);
-            let bucket_lp = Bucket::new(RADIX_TOKEN); //the lp token
             let curr_epoch = Context::current_epoch();
 
             //match: so it goes through every element of the Hashmap.
@@ -144,20 +142,14 @@ blueprint! {
                 }
             };
 
-            // Burn the badge
-            self.minter_vault.authorize(|auth| {
-                badge.burn_with_auth(auth);
-            });
-            // update stakers in the component
-            self.stakers.remove(&badge.resource_address());
-
             
             //loop through staked_vec to calculate what percentage of the reward you should get per epoch.
-            let total_rewards_epoch: Decimal=Decimal::from("100"); //this should be decide in new or something like that. total rewards distributed per epoch.
-            let rewards: Decimal=Decimal::from("0");
-            let prev=StakedEpoch{epoch: 0, staked: Decimal::from("0")};
-            let this: StakedEpoch;
-            let num: Decimal;
+            
+
+            //let prev=StakedEpoch{epoch: 0, staked: Decimal::from("0")};
+            //let this: StakedEpoch;
+
+           /*
             for element in self.staked_vec.iter(){
                 this=element;
                 if prev.epoch>0 {
@@ -167,9 +159,19 @@ blueprint! {
                 prev=this;
             }
             rewards +=total_rewards_epoch*(staker_data.amount/prev.staked); //need to add for last element too
-            bucket_lp.put(self.stake_vault.take(staker_data.amount));
-            bucket_radix.put(self.rewards_vault.take(rewards));
+            */
+            let total_rewards_epoch=100; //this should be decide in new or something like that. total rewards distributed per epoch.
+            let rewards: Decimal=Decimal::from(0);
+            let num:u64;
 
+            for i in 1..=self.staked_vec.len(){
+                num=self.staked_vec[i].epoch-self.staked_vec[i-1].epoch;
+                rewards += Decimal::from(num*total_rewards_epoch)*(staker_data.amount/self.staked_vec[i-1].staked);
+            }
+
+            let bucket_lp= self.stake_vault.take(staker_data.amount);
+            let bucket_reward= self.rewards_vault.take(rewards);
+            
 
            //Updates how much is staked in stakedVec
             let last=self.staked_vec.len()-1;
@@ -181,10 +183,17 @@ blueprint! {
                 self.staked_vec.push(StakedEpoch{epoch: curr_epoch, staked: staker_data.amount-last_epoch_staked});// subtract amount of last element
             }
             
-            
+            // update stakers in the component
+            self.stakers.remove(&badge.resource_address());
+
+            // Burn the badge
+            self.minter_vault.authorize(|auth| {
+                badge.burn_with_auth(auth);
+            });
+
             
             // Return the withdrawn tokens
-            (bucket_radix,bucket_lp)
+            (bucket_lp,bucket_reward)
         }
 
         
