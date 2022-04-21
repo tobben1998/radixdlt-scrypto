@@ -30,12 +30,19 @@ blueprint! {
         stakers: HashMap<Address, StakerData>,
         
         //NB! hashmap. only unique keys, so a staker can not stake two times if not taken care of.
-        //can not just add an extra element in the hashmap, because only one can exist.
+        //can not just add an extra element in the hashmap, because only one per key can exist.
         //better with other strcuts than hashmap, or just update in the stake function based on that?
         //maybe call the witdraw function and then stake function, if they have already staked.
 
 
         staked_vec: Vec<StakedEpoch>, 
+
+        
+
+       
+        
+        
+
     }
 
     impl Stake {
@@ -75,8 +82,9 @@ blueprint! {
             assert!(amount > Decimal::zero(), "You need to stake more than zero tokens");
 
 
-            //match it with your own adress. how to you get your own adress. 
-            //self refer to the struct stake. want the caller.Address or somerhing
+            //trying to handle the problem with people adding stakie more tha one time here
+            //maybe call the witdraw function and than deposit another time
+            
             
             /*
             match self.stakers.get(""){
@@ -100,13 +108,12 @@ blueprint! {
 
             //Updates how much is staked in stakedVec
             let last=self.staked_vec.len()-1;
+            let last_epoch_staked=self.staked_vec[last].staked;
             if curr_epoch == self.staked_vec[last].epoch {
-                let last_epoch_staked=self.staked_vec[last].staked;
-                self.staked_vec[last]=[curr_epoch,amount+last_epoch_staked];
+                self.staked_vec[last].staked=amount+last_epoch_staked;
             }
             else if curr_epoch > self.staked_vec[last].epoch {
-                let penultimate_epoch_staked=self.staked_vec[last-1].staked;
-                self.staked_vec.push([curr_epoch,amount+penultimate_epoch_staked]);// subtract amount of penultimate element
+                self.staked_vec.push(StakedEpoch{ epoch: curr_epoch, staked: amount+last_epoch_staked});// add amount of penultimate element
             }
 
 
@@ -138,38 +145,41 @@ blueprint! {
             };
 
             // Burn the badge
-            self.minter_vault.authorize(|badge| {
-                badge.burn_with_auth(badge);
+            self.minter_vault.authorize(|auth| {
+                badge.burn_with_auth(auth);
             });
             // update stakers in the component
             self.stakers.remove(&badge.resource_address());
-            //Updates how much is staked in stakedVec
-            
-            let last=self.staked_vec.len()-1;
-            if curr_epoch == self.staked_vec[last].epoch {
-                let last_epoch_staked=self.staked_vec[last].staked;
-                self.staked_vec[last]=[curr_epoch,staker_data.amount-last_epoch_staked];
-            }
-            else if curr_epoch > self.staked_vec[last].epoch {
-                let penultimate_epoch_staked=self.staked_vec[last-1].staked;
-                self.staked_vec.push([curr_epoch,staker_data.amount-penultimate_epoch_staked]);// subtract amount of penultimate element
-            }
+
             
             //loop through staked_vec to calculate what percentage of the reward you should get per epoch.
-            let total_rewards_epoch= 100; //this should be decide in new or something like that. total rewards distributed per epoch.
-            let rewards=0;
-            let prev; //do I need to define what prev is to go thorugh if sentence first time
+            let total_rewards_epoch: Decimal=Decimal::from("100"); //this should be decide in new or something like that. total rewards distributed per epoch.
+            let rewards: Decimal=Decimal::from("0");
+            let prev=StakedEpoch{epoch: 0, staked: Decimal::from("0")};
+            let this: StakedEpoch;
+            let num: Decimal;
             for element in self.staked_vec.iter(){
-                let this=element;
+                this=element;
                 if prev.epoch>0 {
-                   let num=this.epoch-prev.epoch;
+                   num= Decimal::from(this.epoch-prev.epoch);
                    rewards += num*total_rewards_epoch*(staker_data.amount/prev.staked);
                 }
-                let prev=this;
+                prev=this;
             }
-            rewards +=total_rewards_epoch*(staker_data.amount/prev.staked); //need to add for last element too
+            //rewards +=total_rewards_epoch*(staker_data.amount/prev.staked); //need to add for last element too
             bucket_lp.put(self.stake_vault.take(staker_data.amount));
             bucket_radix.put(self.rewards_vault.take(rewards));
+
+
+           //Updates how much is staked in stakedVec
+            let last=self.staked_vec.len()-1;
+            let last_epoch_staked=self.staked_vec[last].staked;
+            if curr_epoch == self.staked_vec[last].epoch {
+                self.staked_vec[last].staked=staker_data.amount-last_epoch_staked;
+            }
+            else if curr_epoch > self.staked_vec[last].epoch {
+                self.staked_vec.push(StakedEpoch{epoch: curr_epoch, staked: staker_data.amount-last_epoch_staked});// subtract amount of last element
+            }
             
             
             
