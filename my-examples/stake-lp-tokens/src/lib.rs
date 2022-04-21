@@ -35,7 +35,7 @@ blueprint! {
         //maybe call the witdraw function and then stake function, if they have already staked.
 
 
-        staked_vec: Vec<StakedEpoch>, 
+        staked_vec: Vec<StakedEpoch>, //total tokens staked each epoch
 
         
 
@@ -82,7 +82,7 @@ blueprint! {
             assert!(amount > Decimal::zero(), "You need to stake more than zero tokens");
 
 
-            //trying to handle the problem with people adding stakie more tha one time here
+            //trying to handle the problem with people adding stakie more than one time here
             //maybe call the witdraw function and than deposit another time
             
             
@@ -117,7 +117,6 @@ blueprint! {
             }
 
 
-
             // store new badge address in the stakers struct
             self.stakers.insert(badge.resource_address(), StakerData {started_at: curr_epoch, amount: amount});
             self.stake_vault.put(stake_tokens);
@@ -142,40 +141,29 @@ blueprint! {
                 }
             };
 
-            
-            //loop through staked_vec to calculate what percentage of the reward you should get per epoch.
-            
 
-            //let prev=StakedEpoch{epoch: 0, staked: Decimal::from("0")};
-            //let this: StakedEpoch;
-
-           /*
-            for element in self.staked_vec.iter(){
-                this=element;
-                if prev.epoch>0 {
-                   num= Decimal::from(this.epoch-prev.epoch);
-                   rewards += num*total_rewards_epoch*(staker_data.amount/prev.staked);
-                }
-                prev=this;
-            }
-            rewards +=total_rewards_epoch*(staker_data.amount/prev.staked); //need to add for last element too
-            */
-            let total_rewards_epoch=100; //this should be decide in new or something like that. total rewards distributed per epoch.
-            let mut rewards: Decimal=Decimal::from("0");
-            let mut num:u64;
+            //loops through the stakedVec, and caculate your percentage of total staked coin for each epoch
+            //and give you a reward based on that and how many tokens are distributed each epoch.
+            let total_rewards_epoch=100; //this should be decide in new or something like that.
+            let mut rewards: Decimal=Decimal::from(0);
+            let mut number_of_epochs:u64; //number of epochs since last deposit/witdraw. often 1.
+            let last=self.staked_vec.len()-1;
 
             for i in 1..=self.staked_vec.len(){
-                num=self.staked_vec[i].epoch-self.staked_vec[i-1].epoch;
-                rewards += Decimal::from(num*total_rewards_epoch)*(staker_data.amount/self.staked_vec[i-1].staked);
+                number_of_epochs=self.staked_vec[i].epoch-self.staked_vec[i-1].epoch;
+                rewards += Decimal::from(number_of_epochs*total_rewards_epoch)*(staker_data.amount/self.staked_vec[i-1].staked);
             }
+            //add rewards for the last epochs (not the best readability haha)
+            number_of_epochs=curr_epoch-self.staked_vec.last().unwrap().epoch;
+            rewards += Decimal::from(number_of_epochs*total_rewards_epoch)*(staker_data.amount/self.staked_vec.last().unwrap().staked);
 
-            let bucket_lp= self.stake_vault.take(staker_data.amount);
+            //puts your staked tokens and the your reward in buckets
+            let bucket_stake= self.stake_vault.take(staker_data.amount);
             let bucket_reward= self.rewards_vault.take(rewards);
             
 
-           //Updates how much is staked in stakedVec
-            let last=self.staked_vec.len()-1;
-            let last_epoch_staked=self.staked_vec[last].staked;
+            //Updates how much is staked in stakedVec
+            let last_epoch_staked=self.staked_vec.last().unwrap().staked;
             if curr_epoch == self.staked_vec[last].epoch {
                 self.staked_vec[last].staked=staker_data.amount-last_epoch_staked;
             }
@@ -193,11 +181,11 @@ blueprint! {
 
             
             // Return the withdrawn tokens
-            (bucket_lp,bucket_reward)
+            (bucket_stake,bucket_reward)
         }
 
         
-        //make a function for only witdrawing the rewards
+        //make a function for only witdrawing the rewards?
 
         //make a function for the creater of the new compnent to be able to witdraw and deposit from rewards vaults.
         //if he finds out that more tokens should be used for other rewards plattform.
