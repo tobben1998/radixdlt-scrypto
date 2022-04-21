@@ -161,8 +161,8 @@ blueprint! {
             rewards +=total_rewards_epoch*(staker_data.amount/prev.staked); //need to add for last element too
             */
             let total_rewards_epoch=100; //this should be decide in new or something like that. total rewards distributed per epoch.
-            let rewards: Decimal=Decimal::from(0);
-            let num:u64;
+            let mut rewards: Decimal=Decimal::from("0");
+            let mut num:u64;
 
             for i in 1..=self.staked_vec.len(){
                 num=self.staked_vec[i].epoch-self.staked_vec[i-1].epoch;
