@@ -31,8 +31,7 @@ blueprint! {
         
         //NB! hashmap. only unique keys, so a staker can not stake two times if not taken care of.
         //can not just add an extra element in the hashmap, because only one per key can exist.
-        //better with other strcuts than hashmap, or just update in the stake function based on that?
-        //maybe call the witdraw function and then stake function, if they have already staked.
+        //this will fix itself? because key is the badge. and you will get a uniqe badge every time to calls stake function?
 
 
         staked_vec: Vec<StakedEpoch>, //total tokens staked each epoch
@@ -82,36 +81,25 @@ blueprint! {
             assert!(amount > Decimal::zero(), "You need to stake more than zero tokens");
 
 
-            //trying to handle the problem with people adding stakie more than one time here
-            //maybe call the witdraw function and than deposit another time
-            
-            
-            /*
-            match self.stakers.get(""){
-                Some(staker) => {
-                    std::process::abort();
-                    //call the witdraw function instead of a aborting. I think will be possible then?
-                    //regarding only one address per hashmap.
-                }
-            };
-            */
-
             // Mint Badge with locked amount and start epoch as metadata
             let badge = ResourceBuilder::new_fungible(DIVISIBILITY_NONE)
                 .metadata("name", "Staker Badge")
                 .metadata("amount", amount.to_string())
                 .metadata("start epoch", curr_epoch.to_string())
                 .flags(MINTABLE | BURNABLE )
-                .badge(self.minter_vault.resource_def(), MAY_MINT | MAY_BURN)
+                //.badge(self.minter_vault.resource_def(), MAY_MINT | MAY_BURN)
                 .initial_supply_fungible(1);
 
             
             if self.staked_vec.len()==0{ //add this to the inizialixation of the vector or something like that. no point in checking every time here
+                info!["This is the staked vector before update {:?}", self.staked_vec];
                 self.staked_vec.push(StakedEpoch{ epoch:curr_epoch, staked: amount});
+                info!["This is the staked vector after update {:?}", self.staked_vec];
             }
             else{
 
                 //Updates how much is staked in stakedVec
+                info!["This is the staked vector before update {:?}", self.staked_vec];
                 let last=self.staked_vec.len()-1;
 
                 let last_epoch_staked=self.staked_vec[last].staked;
@@ -121,15 +109,15 @@ blueprint! {
                 else if curr_epoch > self.staked_vec[last].epoch {
                     self.staked_vec.push(StakedEpoch{ epoch: curr_epoch, staked: amount+last_epoch_staked});// add amount of penultimate element
                 }
+                info!["This is the staked vector after update {:?}", self.staked_vec];
 
             }
 
-
-
-
             // store new badge address in the stakers struct
+            info!["This is the stakers Hashmap before  update {:?}", self.stakers];
             self.stakers.insert(badge.resource_address(), StakerData {started_at: curr_epoch, amount: amount});
             self.stake_vault.put(stake_tokens);
+            info!["This is the stakers Hashmap after update {:?}", self.stakers];
 
             badge
         }
@@ -139,7 +127,7 @@ blueprint! {
         //witdraw the staked amount and the fees earned to the stakers wallet
         //calculation of rewards also need to be done here.
 
-        pub fn unstake(&mut self, badge: Bucket) -> (Bucket, Bucket) {
+        pub fn unstake(&mut self, badge: Bucket) -> (Bucket, Bucket, Bucket) {
             let curr_epoch = Context::current_epoch();
 
             let mut bucket_stake = Bucket::new(RADIX_TOKEN);
@@ -155,42 +143,46 @@ blueprint! {
                 let mut rewards: Decimal=Decimal::from(0);
                 let mut number_of_epochs:u64; //number of epochs since last deposit/witdraw. often 1.
                 let last=self.staked_vec.len()-1;
-
-
+                
+                info!["total rewards so far in for-loop, number of epochs, total rewards per epoch, staked amount, total staked that epoch" ];
                 if self.staked_vec.len()>1{
                     for i in 1..self.staked_vec.len(){
-                        number_of_epochs=self.staked_vec[i].epoch-self.staked_vec[i-1].epoch;
-                        rewards += Decimal::from(number_of_epochs*total_rewards_epoch)*(staker_data.amount/self.staked_vec[i-1].staked);
+                        if self.staked_vec[i].epoch>staker_data.started_at{ //add only when you started staking
+                            number_of_epochs=self.staked_vec[i].epoch-self.staked_vec[i-1].epoch; //usually 1 
+                            rewards += Decimal::from(number_of_epochs*total_rewards_epoch)*(staker_data.amount/self.staked_vec[i-1].staked);
+                            info!["{:?} {:?} {:?} {:?} {:?}",rewards, number_of_epochs, total_rewards_epoch, staker_data.amount, self.staked_vec[i-1].staked];
+                        }
                     }
                 }
                 //add rewards for the last epochs (not the best readability haha)
                 number_of_epochs=curr_epoch-self.staked_vec.last().unwrap().epoch;
                 rewards += Decimal::from(number_of_epochs*total_rewards_epoch)*(staker_data.amount/self.staked_vec.last().unwrap().staked);
-                
-                //puts your staked tokens and the your reward in buckets
+                info!["{:?} {:?} {:?} {:?} {:?}",rewards, number_of_epochs, total_rewards_epoch, staker_data.amount, self.staked_vec.last().unwrap().staked];
+
+
+
+                //puts your staked tokens and your reward in buckets
                 info!("Bukcetstake: {}    Bucket_reward: {}", staker_data.amount, rewards);
                 bucket_stake.put(self.stake_vault.take(staker_data.amount));
                 bucket_reward.put(self.rewards_vault.take(rewards));
                 
                 //Updates how much is staked in stakedVec
+                info!["This is the staked vector before update {:?}", self.staked_vec];
                 let staked_last_epoch=self.staked_vec.last().unwrap().staked;
                 if curr_epoch == self.staked_vec[last].epoch {
-                    self.staked_vec[last].staked=staker_data.amount-staked_last_epoch;
+                    self.staked_vec[last].staked=staked_last_epoch-staker_data.amount;
                 }
                 else if curr_epoch > self.staked_vec[last].epoch {
-                    self.staked_vec.push(StakedEpoch{epoch: curr_epoch, staked: staker_data.amount-staked_last_epoch});// subtract amount of last element
+                    self.staked_vec.push(StakedEpoch{epoch: curr_epoch, staked: staked_last_epoch-staker_data.amount});// subtract amount of last element
                 }
+                info!["This is the staked vector after update {:?}", self.staked_vec];
+                
                 // update stakers in the component
+                info!["This is the stakers Hashmap before  update {:?}", self.stakers];
                 self.stakers.remove(&badge.resource_address());
-                info!("here1");
-                // Burn the badge
-                info!("here2");
-                self.minter_vault.authorize(|auth| {
-                    info!("here3");
-                    badge.burn_with_auth(auth);
-                });
-                info!("here4");
-                // Return the withdrawn tokens
+                info!["This is the stakers Hashmap after  update {:?}", self.stakers];
+
+
                 },
                 None => {
                     info!("no mints found with provided badge");
@@ -199,7 +191,7 @@ blueprint! {
             }
 
 
-            (bucket_stake,bucket_reward)
+            (bucket_stake,bucket_reward, badge) //burn the badge instead of return it if you find out how to.
         }
 
 

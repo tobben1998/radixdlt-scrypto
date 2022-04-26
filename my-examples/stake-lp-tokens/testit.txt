@@ -21,27 +21,61 @@ export pkg=""
 
 resim call-function $pkg Stake new
 
-export resdef=""
-
 export comp=""
 
 resim set-default-account $a1 $pk1
 resim call-method $comp add_rewards 10000,$xrd
 
+Some way to test if stuff work...
 
 resim set-current-epoch 1
 resim call-method $comp stake 1000,$xrd
 
-export b1= "the resorceDef"
+export b1a= "the resorceDef"                //b1a=badge account1 a(first)
 
-resim call-method $comp unstake 1,$b1
+resim call-method $comp stake 1000,$xrd
 
+export b1b= "the resorceDef"                //b1a=badge account1 b(second)
+
+resim set-current-epoch 5
+resim set-default-account $a2 $pk2
+resim call-method $comp stake 500,$xrd
+
+export b2a= "the resorceDef" 
 
 resim set-current-epoch 10
-
-resim set-default-account $a2 $pk2
-resim call-method $comp stake 1000,$xrd
 resim set-default-account $a3 $pk3
 resim call-method $comp stake 1000,$xrd
-resim set-default-account $a4 $pk4
+
+export b3a= "the resorceDef" 
+
+resim set-current-epoch 15
+resim set-default-account $a1 $pk1
+resim call-method $comp unstake 1,$b1a
+resim call-method $comp unstake 1,$b1b
+resim set-default-account $a2 $pk2
+resim call-method $comp unstake 1,$b2a
+resim set-default-account $a3 $pk3
+resim call-method $comp unstake 1,$b3a
+
+
+
+
+
+
+export b2a= "the resorceDef" 
+resim set-default-account $a3 $pk3
 resim call-method $comp stake 1000,$xrd
+export b3a= "the resorceDef" 
+resim set-default-account $a4 $pk4
+resim call-method $comp stake 1500,$xrd
+export b4a= "the resorceDef" 
+
+resim set-current-epoch 20
+
+resim set-default-account $a2 $pk2
+resim call-method $comp unstake 1,$b2a
+resim set-default-account $a3 $pk3
+resim call-method $comp unstake 1,$b3a
+resim set-default-account $a4 $pk4
+resim call-method $comp unstake 1,$b4a
