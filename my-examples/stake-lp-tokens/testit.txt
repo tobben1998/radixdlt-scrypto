@@ -25,16 +25,16 @@ export resdef=""
 
 export comp=""
 
-resim call-method $comp add_rewards 10000,$xrp
+resim set-default-account $a1 $pk1
+resim call-method $comp add_rewards 10000,$xrd
 
 
 resim set-current-epoch 1
-resim set-default-account $a1 $pk1
 resim call-method $comp stake 1000,$xrd
 
-export badge= "the resorceDef"
+export b1= "the resorceDef"
 
-resim call-method $comp unstake 1,$badge
+resim call-method $comp unstake 1,$b1
 
 
 resim set-current-epoch 10

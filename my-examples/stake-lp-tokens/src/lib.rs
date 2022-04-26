@@ -3,7 +3,7 @@ use sbor::*;
 
 //inspiration from time-lock and chrimstams caledner coal staking day 10?
 
-#[derive(Debug, TypeId, Encode, Decode, Describe, PartialEq, Eq)]
+#[derive(Debug, TypeId, Encode, Decode, Clone, Copy, Describe, PartialEq, Eq)]
 pub struct StakerData{
     started_at: u64,
     amount: Decimal,
@@ -104,8 +104,6 @@ blueprint! {
                 .flags(MINTABLE | BURNABLE )
                 .badge(self.minter_vault.resource_def(), MAY_MINT | MAY_BURN)
                 .initial_supply_fungible(1);
-        
-
 
             
             if self.staked_vec.len()==0{ //add this to the inizialixation of the vector or something like that. no point in checking every time here
@@ -144,61 +142,73 @@ blueprint! {
         pub fn unstake(&mut self, badge: Bucket) -> (Bucket, Bucket) {
             let curr_epoch = Context::current_epoch();
 
+            let mut bucket_stake = Bucket::new(RADIX_TOKEN);
+            let mut bucket_reward = Bucket::new(RADIX_TOKEN);
 
             //match: so it goes through every element of the Hashmap.
-            let staker_data = match self.stakers.get(&badge.resource_address()) {
-                Some(staker) => staker,
+            match self.stakers.get(&badge.resource_address()) {
+                Some(&staker_data) => {
+                
+                //loops through the stakedVec, and caculate your percentage of total staked coin for each epoch
+                //and give you a reward based on that and how many tokens are distributed each epoch.
+                let total_rewards_epoch=100; //this should be decide in new or something like that.
+                let mut rewards: Decimal=Decimal::from(0);
+                let mut number_of_epochs:u64; //number of epochs since last deposit/witdraw. often 1.
+                let last=self.staked_vec.len()-1;
+
+
+                if self.staked_vec.len()>1{
+                    for i in 1..self.staked_vec.len(){
+                        number_of_epochs=self.staked_vec[i].epoch-self.staked_vec[i-1].epoch;
+                        rewards += Decimal::from(number_of_epochs*total_rewards_epoch)*(staker_data.amount/self.staked_vec[i-1].staked);
+                    }
+                }
+                //add rewards for the last epochs (not the best readability haha)
+                number_of_epochs=curr_epoch-self.staked_vec.last().unwrap().epoch;
+                rewards += Decimal::from(number_of_epochs*total_rewards_epoch)*(staker_data.amount/self.staked_vec.last().unwrap().staked);
+                
+                //puts your staked tokens and the your reward in buckets
+                info!("Bukcetstake: {}    Bucket_reward: {}", staker_data.amount, rewards);
+                bucket_stake.put(self.stake_vault.take(staker_data.amount));
+                bucket_reward.put(self.rewards_vault.take(rewards));
+                
+                //Updates how much is staked in stakedVec
+                let staked_last_epoch=self.staked_vec.last().unwrap().staked;
+                if curr_epoch == self.staked_vec[last].epoch {
+                    self.staked_vec[last].staked=staker_data.amount-staked_last_epoch;
+                }
+                else if curr_epoch > self.staked_vec[last].epoch {
+                    self.staked_vec.push(StakedEpoch{epoch: curr_epoch, staked: staker_data.amount-staked_last_epoch});// subtract amount of last element
+                }
+                // update stakers in the component
+                self.stakers.remove(&badge.resource_address());
+                info!("here1");
+                // Burn the badge
+                info!("here2");
+                self.minter_vault.authorize(|auth| {
+                    info!("here3");
+                    badge.burn_with_auth(auth);
+                });
+                info!("here4");
+                // Return the withdrawn tokens
+                },
                 None => {
                     info!("no mints found with provided badge");
                     std::process::abort();
                 }
-            };
-
-            //loops through the stakedVec, and caculate your percentage of total staked coin for each epoch
-            //and give you a reward based on that and how many tokens are distributed each epoch.
-            let total_rewards_epoch=100; //this should be decide in new or something like that.
-            let mut rewards: Decimal=Decimal::from(0);
-            let mut number_of_epochs:u64; //number of epochs since last deposit/witdraw. often 1.
-            let last=self.staked_vec.len()-1;
-
-
-            if self.staked_vec.len()>1{
-                for i in 1..=self.staked_vec.len(){
-                    number_of_epochs=self.staked_vec[i].epoch-self.staked_vec[i-1].epoch;
-                    rewards += Decimal::from(number_of_epochs*total_rewards_epoch)*(staker_data.amount/self.staked_vec[i-1].staked);
-                }
             }
-            //add rewards for the last epochs (not the best readability haha)
-            number_of_epochs=curr_epoch-self.staked_vec.last().unwrap().epoch;
-            rewards += Decimal::from(number_of_epochs*total_rewards_epoch)*(staker_data.amount/self.staked_vec.last().unwrap().staked);
-            //puts your staked tokens and the your reward in buckets
-            let bucket_stake= self.stake_vault.take(staker_data.amount);
-            let bucket_reward= self.rewards_vault.take(rewards);
 
-            //Updates how much is staked in stakedVec
-            let staked_last_epoch=self.staked_vec.last().unwrap().staked;
-            if curr_epoch == self.staked_vec[last].epoch {
-                self.staked_vec[last].staked=staker_data.amount-staked_last_epoch;
-            }
-            else if curr_epoch > self.staked_vec[last].epoch {
-                self.staked_vec.push(StakedEpoch{epoch: curr_epoch, staked: staker_data.amount-staked_last_epoch});// subtract amount of last element
-            }
-            // update stakers in the component
-            self.stakers.remove(&badge.resource_address());
-            info!("here1");
-            // Burn the badge
-            self.minter_vault.authorize(|auth| {
-                info!("here2");
-                badge.burn_with_auth(auth);
-            });
 
-            // Return the withdrawn tokens
             (bucket_stake,bucket_reward)
         }
 
 
         pub fn add_rewards(&mut self, rewards:Bucket) {
             self.rewards_vault.put(rewards);
+        }
+
+        pub fn test_add_to_pool(&mut self, stake:Bucket) {
+            self.stake_vault.put(stake)
         }
 
         

@@ -8,12 +8,12 @@ resim new-account
 export acct="address"
 export pub="pubkey" (not always necesarly)
 resim publish . (or path if not in current folder)
-export package
+export pkg
 resim call-function
 export component and resource
 resim call-method
 
 resim reset (if you change the bluprint struct)
-resim publish --address $package .  (if you only change functions and not blueprint struct)(path instead of "." if other path. )
+resim publish --address $pkg .  (if you only change functions and not blueprint struct)(path instead of "." if other path. )
 
 
