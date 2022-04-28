@@ -46,14 +46,13 @@ blueprint! {
 
     impl Stake {
 
-        pub fn new() -> (Component, Bucket) { //instansiate function
+        pub fn new() -> Component { //instansiate function
 
-            let mut minter_bucket = ResourceBuilder::new_fungible(DIVISIBILITY_NONE)
+            let minter_bucket = ResourceBuilder::new_fungible(DIVISIBILITY_NONE)
             .metadata("name", "Badge Mint Auth")
             .initial_supply_fungible(1);
 
             let minter_resource_def = minter_bucket.resource_def();
-            let minter_return_bucket: Bucket = minter_bucket.take(1); // Return this badge to the caller
 
 
             let component = Self {
@@ -66,7 +65,7 @@ blueprint! {
             }
             .instantiate();
             
-            (component, minter_return_bucket)
+            component
         }
 
         //Stake
@@ -87,7 +86,7 @@ blueprint! {
                 .metadata("amount", amount.to_string())
                 .metadata("start epoch", curr_epoch.to_string())
                 .flags(MINTABLE | BURNABLE )
-                //.badge(self.minter_vault.resource_def(), MAY_MINT | MAY_BURN)
+                .badge(self.minter_vault.resource_def(), MAY_MINT | MAY_BURN)
                 .initial_supply_fungible(1);
 
             
@@ -127,7 +126,7 @@ blueprint! {
         //witdraw the staked amount and the fees earned to the stakers wallet
         //calculation of rewards also need to be done here.
 
-        pub fn unstake(&mut self, badge: Bucket) -> (Bucket, Bucket, Bucket) {
+        pub fn unstake(&mut self, badge: Bucket) -> (Bucket, Bucket) {
             let curr_epoch = Context::current_epoch();
 
             let mut bucket_stake = Bucket::new(RADIX_TOKEN);
@@ -181,7 +180,15 @@ blueprint! {
                 info!["This is the stakers Hashmap before  update {:?}", self.stakers];
                 self.stakers.remove(&badge.resource_address());
                 info!["This is the stakers Hashmap after  update {:?}", self.stakers];
-
+                
+                self.stakers.remove(&badge.resource_address());
+                info!("here1");
+                self.minter_vault.authorize(|auth| {
+                    info!("here2");
+                    badge.burn_with_auth(auth);
+                });
+                info!("here3");
+                // Return the withdrawn tokens
 
                 },
                 None => {
@@ -191,7 +198,7 @@ blueprint! {
             }
 
 
-            (bucket_stake,bucket_reward, badge) //burn the badge instead of return it if you find out how to.
+            (bucket_stake,bucket_reward) //burn the badge instead of return it if you find out how to.
         }
 
 
