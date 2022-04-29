@@ -1,3 +1,5 @@
+//currently v 0.3
+
 use scrypto::prelude::*;
 use sbor::*;
 
