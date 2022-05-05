@@ -5,13 +5,13 @@ use sbor::*;
 
 //inspiration from time-lock and chrimstams caledner coal staking day 10?
 
-#[derive(Debug, TypeId, Encode, Decode, Clone, Copy, Describe, PartialEq, Eq)]
+//#[derive(Debug, TypeId, Encode, Decode, Clone, Copy, Describe, PartialEq, Eq)]
 pub struct StakerData{
     started_at: u64,
     amount: Decimal,
 }
 
-#[derive(Debug, TypeId, Encode, Decode, Describe, PartialEq, Eq)]
+//#[derive(Debug, TypeId, Encode, Decode, Describe, PartialEq, Eq)]
 pub struct StakedEpoch{
     epoch: u64,
     staked: Decimal,
@@ -23,13 +23,13 @@ blueprint! {
         // Authorization for the person making this thing to controll rewards vault.
         //(should deposit and witdraewl from rewards be possible?)
         minter_vault: Vault,
-        minter_badge: ResourceDef,
+        minter_badge: ResourceManager,
 
         stake_vault: Vault,
         rewards_vault: Vault, //the owner will set the total rewards amount in here.
 
         
-        stakers: HashMap<Address, StakerData>,
+        stakers: HashMap<ComponentAddress, StakerData>,
         
         //NB! hashmap. only unique keys, so a staker can not stake two times if not taken care of.
         //can not just add an extra element in the hashmap, because only one per key can exist.
@@ -48,13 +48,13 @@ blueprint! {
 
     impl Stake {
 
-        pub fn new() -> Component { //instansiate function
+        pub fn new() -> ComponentAddress { //instansiate function
 
             let minter_bucket = ResourceBuilder::new_fungible(DIVISIBILITY_NONE)
             .metadata("name", "Badge Mint Auth")
-            .initial_supply_fungible(1);
+            .initial_supply(1);
 
-            let minter_resource_def = minter_bucket.resource_def();
+            let minter_resource_def = minter_bucket.resource_address(); // this had an alternative "borrow_resource_mananger!"
 
 
             let component = Self {
@@ -65,7 +65,8 @@ blueprint! {
                 stakers: HashMap::new(),
                 staked_vec: Vec::new()
             }
-            .instantiate();
+            .instantiate()
+            .globalize();
             
             component
         }
@@ -77,7 +78,7 @@ blueprint! {
         pub fn stake(&mut self, stake_tokens: Bucket) -> Bucket{
 
                         
-            let curr_epoch=Context::current_epoch();      
+            let curr_epoch=Runtime::current_epoch();      
             let amount = stake_tokens.amount(); 
             assert!(amount > Decimal::zero(), "You need to stake more than zero tokens");
 
@@ -88,7 +89,7 @@ blueprint! {
                 .metadata("amount", amount.to_string())
                 .metadata("start epoch", curr_epoch.to_string())
                 .flags(MINTABLE | BURNABLE )
-                .badge(self.minter_vault.resource_def(), MAY_MINT | MAY_BURN)
+                .badge(self.minter_vault.resource_address(), MAY_MINT | MAY_BURN) // alternative here too
                 .initial_supply_fungible(1);
 
             
@@ -129,7 +130,7 @@ blueprint! {
         //calculation of rewards also need to be done here.
 
         pub fn unstake(&mut self, badge: Bucket) -> (Bucket, Bucket) {
-            let curr_epoch = Context::current_epoch();
+            let curr_epoch = Runtime::current_epoch();
 
             let mut bucket_stake = Bucket::new(RADIX_TOKEN);
             let mut bucket_reward = Bucket::new(RADIX_TOKEN);
@@ -185,7 +186,7 @@ blueprint! {
                 
                 self.stakers.remove(&badge.resource_address());
                 info!("here1");
-                self.minter_vault.authorize(|auth| {
+                self.minter_vault.authorize(|auth| {  //change something here too?
                     info!("here2");
                     badge.burn_with_auth(auth);
                 });
